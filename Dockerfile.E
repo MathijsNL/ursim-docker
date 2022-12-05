@@ -1,0 +1,36 @@
+FROM ubuntu:20.04 as runtime
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+ARG user=ur
+ARG group=ur
+ARG uid=1000
+ARG gid=1000
+RUN groupadd -g ${gid} ${group}
+RUN useradd -u ${uid} -g ${group} -s /bin/bash -m ${user}
+
+RUN apt update
+
+#psmisc needed for killall
+RUN apt install psmisc -y
+
+#install java and dependencies from install.sh
+RUN apt install openjdk-8-jre -y
+RUN apt install -y libcurl4 libjava3d-* ttf-dejavu* fonts-ipafont fonts-baekmuk fonts-nanum fonts-arphic-uming fonts-arphic-ukai
+RUN apt install -y lib32gcc1 lib32stdc++6 libc6-i386
+
+#download ur sim
+RUN apt install wget -y
+RUN wget https://s3-eu-west-1.amazonaws.com/ur-support-site/180509/URSim_Linux-5.13.0.113898.tar.gz -O URSim_Linux.tar.gz
+RUN tar xvzf URSim_Linux.tar.gz -C /home/ur/
+RUN chown ${uid}:${gid} -R /home/ur
+
+WORKDIR /home/ur/ursim-5.13.0.113898
+
+#delete i386 debs and install amd64 ursim-dependencies
+RUN rm -f ursim-dependencies/*i386.deb
+RUN dpkg -i --force-overwrite ursim-dependencies/*.deb
+
+#change to non-root user and start ursim
+USER ${uid}:${gid}
+CMD ./start-ursim.sh ${URTYPE}
